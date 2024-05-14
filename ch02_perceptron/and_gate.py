@@ -31,3 +31,8 @@ def AND2(x1, x2):
 # print(AND2(1, 0))
 # print(AND2(0, 1))
 # print(AND2(1, 1))
+
+# 0
+# 0
+# 0
+# 1
