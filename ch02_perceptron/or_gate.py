@@ -11,7 +11,12 @@ def OR(x1, x2):
 	else:
 		return 1
 
-# print(OR(0, 0))
-# print(OR(1, 0))
-# print(OR(0, 1))
-# print(OR(1, 1))
+print(OR(0, 0))
+print(OR(1, 0))
+print(OR(0, 1))
+print(OR(1, 1))
+
+# 0
+# 1
+# 1
+# 1
