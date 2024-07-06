@@ -53,6 +53,8 @@ def numerical_gradient(f, x):
 
 		x[idx] = tmp_val	# 값 복원
 		it.iternext()
+	
+	return grad
 
 # f: 최적화하려는 함수, init_x: 초기값(시작점), lr: learning rate, step_num: 경사법 반복 횟수
 def gradient_descent(f, init_x, lr = 0.01, step_num = 100):
