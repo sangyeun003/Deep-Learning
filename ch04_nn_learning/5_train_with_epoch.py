@@ -26,7 +26,7 @@ iter_per_epoch = max(train_size / batch_size, 1)
 
 for i in range(iters_num):
 	# 미니배치 획득
-	batch_mask = np.random.choice(train_size, batch_size)	# 0~train_size 중에서 batch_size만큼 랜덤 선택
+	batch_mask = np.random.choice(train_size, batch_size)	# 0~train_size-1 중에서 batch_size만큼 랜덤 선택
 	x_batch = x_train[batch_mask]
 	t_batch = t_train[batch_mask]
 

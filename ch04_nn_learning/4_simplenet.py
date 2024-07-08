@@ -7,7 +7,7 @@ from common.gradient import numerical_gradient
 
 class simpleNet:
 	def __init__(self):
-		self.W = np.random.randn(2, 3)	# 정규 분포로 초기화
+		self.W = np.random.randn(2, 3)	# 가중치를 정규 분포로 초기화
 	
 	def predict(self, x):
 		return np.dot(x, self.W)
@@ -39,6 +39,8 @@ def f(W):
 
 dW = numerical_gradient(f, net.W)	# dL/dW
 print("기울기: ", dW)
+# [[ 0.2926202   0.2725665  -0.5651867 ]
+# [ 0.4389303   0.40884975 -0.84778005]]
 
 # Lambda 기법 사용
 f = lambda w: net.loss(x, t)
