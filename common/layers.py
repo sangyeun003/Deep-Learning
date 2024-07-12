@@ -37,11 +37,16 @@ class Affine:
 		self.W = W
 		self.b = b
 		self.x = None
+		self.original_x_shape = None
 		self.dW = None		# dL/dW
 		self.db = None		# dL/db
 	
 	def forward(self, x):
+		# 텐서 대응
+		self.original_x_shape = x.shape
+		x = x.reshape(x.shape[0], -1)
 		self.x = x
+
 		out = np.dot(x, self.W) + self.b
 
 		return out
@@ -51,6 +56,7 @@ class Affine:
 		self.dW = np.dot(self.x.T, dout)
 		self.db = np.sum(dout, axis = 0)
 
+		dx = dx.reshape(*self.original_x_shape)	# 입력 데이터 모양 변경(텐서 대응)
 		return dx
 
 from common.functions import softmax, cross_entropy_error
@@ -181,3 +187,110 @@ class Dropout:
 	
 	def backward(self, dout):	# ReLU와 동작 같음. 순전파 때 신호를 통과시키는 뉴런은 역전파 때도 신호 그대로 통과. 나머지는 차단
 		return dout * self.mask
+
+import sys, os
+sys.path.append(os.pardir)
+
+import numpy as np
+from common.util import im2col, col2im
+
+# Convolution 계층
+class Convolution:
+	def __init__(self, W, b, stride=1, pad=0):
+		self.W = W
+		self.b = b
+		self.stride = stride
+		self.pad = pad
+
+		# 중간 데이터（backward 시 사용）
+		self.x = None   
+		self.col = None
+		self.col_W = None
+
+		# 가중치와 편향 매개변수의 기울기
+		self.dW = None
+		self.db = None
+	
+	def forward(self, x):
+		FN, C, FH, FW = self.W.shape	# Filter의 형상
+		N, C, H, W = x.shape			# input data의 형상
+		out_h = int((H + 2 * self.pad - FH) / self.stride + 1)
+		out_w = int((W + 2 * self.pad - FW) / self.stride + 1)
+		
+		col = im2col(x, FH, FW, self.stride, self.pad)
+		col_W = self.W.reshape(FN, -1).T	# 행렬 전치
+		# 필터 전개. -1을 사용하면 앞 인자(FN)에 맞춰 알아서 열 수 맞춰줌(총 원소 수 / FN)
+
+		out = np.dot(col, col_W) + self.b
+
+		out = out.reshape(N, out_h, out_w, -1).transpose(0, 3, 1, 2)
+		# 축의 순서를 바꿔줌. -1 써서 채널 수 신경 안써도 자동으로 해줌
+
+		self.x = x
+		self.col = col
+		self.col_W = col_W
+		
+		return out
+	
+	def backward(self, dout):
+		FN, C, FH, FW = self.W.shape
+		dout = dout.transpose(0,2,3,1).reshape(-1, FN)
+
+		self.db = np.sum(dout, axis=0)
+		self.dW = np.dot(self.col.T, dout)
+		self.dW = self.dW.transpose(1, 0).reshape(FN, C, FH, FW)
+
+		dcol = np.dot(dout, self.col_W.T)
+		dx = col2im(dcol, self.x.shape, FH, FW, self.stride, self.pad)
+
+		return dx
+
+import sys, os
+sys.path.append(os.pardir)
+
+import numpy as np
+from common.util import im2col, col2im
+
+class Pooling:
+	def __init__(self, pool_h, pool_w, stride=1, pad=0):
+		self.pool_h = pool_h
+		self.pool_w = pool_w
+		self.stride = stride
+		self.pad = pad
+
+		self.x = None
+		self.arg_max = None
+	
+	def forward(self, x):
+		N, C, H, W = x.shape
+		out_h = int((H - self.pool_h) / self.stride + 1)
+		out_w = int((W - self.pool_w) / self.stride + 1)
+
+		# 1. 전개
+		col = im2col(x, self.pool_h, self.pool_w, self.stride, self.pad)
+		col = col.reshape(-1, self.pool_h * self.pool_w)
+
+		# 2. 최대값 구하기
+		arg_max = np.argmax(col, axis=1)
+		out = np.max(col, axis = 1)
+
+		# 3. 성형
+		out = out.reshape(N, out_h, out_w, C).transpose(0, 3, 1, 2)
+
+		self.x = x
+		self.arg_max = arg_max
+	
+		return out
+	
+	def backward(self, dout):
+		dout = dout.transpose(0, 2, 3, 1)
+
+		pool_size = self.pool_h * self.pool_w
+		dmax = np.zeros((dout.size, pool_size))
+		dmax[np.arange(self.arg_max.size), self.arg_max.flatten()] = dout.flatten()
+		dmax = dmax.reshape(dout.shape + (pool_size,)) 
+
+		dcol = dmax.reshape(dmax.shape[0] * dmax.shape[1] * dmax.shape[2], -1)
+		dx = col2im(dcol, self.x.shape, self.pool_h, self.pool_w, self.stride, self.pad)
+
+		return dx
